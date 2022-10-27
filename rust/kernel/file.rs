@@ -886,3 +886,38 @@ pub trait Operations {
         Ok(bindings::POLLIN | bindings::POLLOUT | bindings::POLLRDNORM | bindings::POLLWRNORM)
     }
 }
+
+/// Wrap the kernel's `struct files_struct`.
+///
+/// # Invariants
+///
+/// The pointer `FilesStruct::ptr` is null or valid.
+#[repr(transparent)]
+pub struct FilesStruct {
+    ptr: *mut bindings::files_struct,
+}
+
+impl FilesStruct {
+    /// Constructors a new `struct files_struct` wrapper
+    ///
+    /// #Safety
+    ///
+    /// The pointer `ptr` must be either null or valid pointer for the lifetime of the object.
+    unsafe fn from_ptr(ptr: *mut bindings::files_struct) -> Self {
+        Self { ptr }
+    }
+
+    /// Close open files of current task.
+    pub fn do_close_on_exec(&self) {
+        // SAFETY: By the type invariant, we know that `self.ptr` is valid.
+        unsafe { bindings::do_close_on_exec(self.ptr) };
+    }
+
+}
+
+impl Drop for FilesStruct {
+    fn drop(&mut self) {
+        // SAFETY: By the type invariant, we know that `self.ptr` is valid.
+        unsafe { bindings::put_files_struct(self.ptr) }
+    }
+}
